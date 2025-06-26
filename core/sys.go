@@ -21,7 +21,7 @@ func NewModuleLoader(di *dig.Container) *ModuleLoader {
 	}
 }
 
-func (mma *ModuleLoader) Load() error {
+func (loader *ModuleLoader) Load() error {
 
 	path := os.Getenv("MODULES_PATH")
 
@@ -71,7 +71,7 @@ func (mma *ModuleLoader) Load() error {
 
 		fmt.Printf("Module loaded: %s\n", modulePath)
 
-		wire(mma.di)
+		wire(loader.di)
 
 		return nil
 	})
