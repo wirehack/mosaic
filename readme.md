@@ -1,3 +1,5 @@
 # Mosaic
 
-Mosaic is standalone software for boosting up your backend projects.
+Mosaic is backend software written in go to boost development and focus on the product itself.
+
+
