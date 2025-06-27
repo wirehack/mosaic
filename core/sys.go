@@ -1,23 +1,36 @@
 package core
 
 import (
+	"embed"
 	"errors"
 	"fmt"
 	"io/fs"
+	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"plugin"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/render"
 	"go.uber.org/dig"
 )
 
+type ModuleInfo struct {
+	Slug        string `json:"slug"`
+	Description string `json:"description"`
+	Version     string `json:"version"`
+}
+
 type ModuleLoader struct {
-	di *dig.Container
+	di       *dig.Container
+	registry []*ModuleInfo
 }
 
 func NewModuleLoader(di *dig.Container) *ModuleLoader {
 	return &ModuleLoader{
-		di: di,
+		di:       di,
+		registry: make([]*ModuleInfo, 0),
 	}
 }
 
@@ -49,12 +62,41 @@ func (loader *ModuleLoader) Load() error {
 			return errors.New("expected plugin file")
 		}
 
+		moduleName := filepath.Base(filepath.Dir(modulePath))
+
 		proxy, err := plugin.Open(
 			modulePath,
 		)
 
 		if err != nil {
 			return err
+		}
+
+		info, err := proxy.Lookup("Info")
+
+		if err != nil {
+			return errors.New("module info is mandatory")
+		}
+
+		loader.registry = append(loader.registry, info.(func() *ModuleInfo)())
+
+		ui, err := proxy.Lookup("UI")
+
+		if err == nil && ui != nil {
+			loader.di.Invoke(func(router chi.Router) {
+
+				content, err := fs.Sub(ui.(*embed.FS), "ui/dist")
+
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				router.Handle(
+					fmt.Sprintf("/ui/%s/*", moduleName),
+					http.StripPrefix(fmt.Sprintf("/ui/%s/", moduleName), http.FileServer(http.FS(content))),
+				)
+
+			})
 		}
 
 		fn, err := proxy.Lookup("Wire")
@@ -79,6 +121,12 @@ func (loader *ModuleLoader) Load() error {
 	if err != nil {
 		return err
 	}
+
+	loader.di.Invoke(func(router chi.Router) {
+		router.Get("/sys/modules", func(w http.ResponseWriter, r *http.Request) {
+			render.JSON(w, r, loader.registry)
+		})
+	})
 
 	return nil
 }
