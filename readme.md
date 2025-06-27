@@ -1,5 +1,3 @@
 # Mosaic
 
-Mosaic is backend software written in go to boost development and focus on the product itself.
-
-
+Mosaic is a backend kit written in Go you can use to boost development.
