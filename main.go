@@ -15,9 +15,7 @@ func main() {
 	di := dig.New()
 	di.Provide(func() chi.Router { return mux })
 
-	loader := core.NewModuleLoader(di)
-
-	if err := loader.Load(); err != nil {
+	if err := core.RegisterModules(di); err != nil {
 		panic(err)
 	}
 
