@@ -20,6 +20,8 @@ type ModuleInfo struct {
 	Slug        string `json:"slug"`
 	Description string `json:"description"`
 	Version     string `json:"version"`
+	Author      string `json:"author"`
+	Website     string `json:"website"`
 }
 
 type ModuleLoader struct {
@@ -72,14 +74,6 @@ func (loader *ModuleLoader) Load() error {
 			return err
 		}
 
-		info, err := proxy.Lookup("Info")
-
-		if err != nil {
-			return errors.New("module info is mandatory")
-		}
-
-		loader.registry = append(loader.registry, info.(func() *ModuleInfo)())
-
 		ui, err := proxy.Lookup("UI")
 
 		if err == nil && ui != nil {
@@ -105,7 +99,7 @@ func (loader *ModuleLoader) Load() error {
 			return err
 		}
 
-		wire, isWireFunction := fn.(func(di *dig.Container))
+		wire, isWireFunction := fn.(func(di *dig.Container) *ModuleInfo)
 
 		if !isWireFunction {
 			return errors.New("wire function expected")
@@ -113,7 +107,7 @@ func (loader *ModuleLoader) Load() error {
 
 		fmt.Printf("Module loaded: %s\n", modulePath)
 
-		wire(loader.di)
+		loader.registry = append(loader.registry, wire(loader.di))
 
 		return nil
 	})
