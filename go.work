@@ -3,6 +3,7 @@ go 1.24.4
 use .
 
 use (
+    "c"
     "cli"
     "core"
     "modules/test"

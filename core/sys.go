@@ -1,6 +1,7 @@
 package core
 
 import (
+	"c"
 	"embed"
 	"errors"
 	"fmt"
@@ -25,12 +26,12 @@ type ModuleInfo struct {
 }
 
 type ModuleLoader struct {
-	di           *dig.Container
+	di           *dig.Scope
 	registry     []*ModuleInfo
 	onUiRegister func(mi *ModuleInfo, ui *embed.FS)
 }
 
-func NewModuleLoader(di *dig.Container, onUiRegister func(mi *ModuleInfo, ui *embed.FS)) *ModuleLoader {
+func NewModuleLoader(di *dig.Scope, onUiRegister func(mi *ModuleInfo, ui *embed.FS)) *ModuleLoader {
 	return &ModuleLoader{
 		di:           di,
 		registry:     make([]*ModuleInfo, 0),
@@ -84,7 +85,7 @@ func (loader *ModuleLoader) Load() error {
 			return err
 		}
 
-		wire, isWireFunction := fn.(func(di *dig.Container) *ModuleInfo)
+		wire, isWireFunction := fn.(func(di *dig.Scope) *ModuleInfo)
 
 		if !isWireFunction {
 			return errors.New("wire function expected")
@@ -110,7 +111,7 @@ func (loader *ModuleLoader) Load() error {
 	return nil
 }
 
-func RegisterModules(di *dig.Container) error {
+func RegisterModules(di *dig.Scope) error {
 
 	loader := NewModuleLoader(di, func(mi *ModuleInfo, ui *embed.FS) {
 
@@ -123,16 +124,17 @@ func RegisterModules(di *dig.Container) error {
 			}
 
 			router.Handle(
-				fmt.Sprintf("/ui/%s/*", mi.Slug),
-				http.StripPrefix(fmt.Sprintf("/ui/%s/", mi.Slug), http.FileServer(http.FS(content))),
+				fmt.Sprintf("/%s/ui/*", mi.Slug),
+				http.StripPrefix(fmt.Sprintf("/%s/ui/", mi.Slug), http.FileServer(http.FS(content))),
 			)
 
 		})
 
+		c.Log().Infof("Module %s loaded", mi.Slug)
 	})
 
 	di.Invoke(func(router chi.Router) {
-		router.Get("/sys/modules", func(w http.ResponseWriter, r *http.Request) {
+		router.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			render.JSON(w, r, loader.Registry())
 		})
 	})

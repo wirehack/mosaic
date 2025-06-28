@@ -12,7 +12,7 @@ import (
 //go:embed ui/dist/*
 var UI embed.FS
 
-func Wire(di *dig.Container) *core.ModuleInfo {
+func Wire(di *dig.Scope) *core.ModuleInfo {
 
 	di.Invoke(func(router chi.Router) {
 		router.Get("/id", func(w http.ResponseWriter, r *http.Request) {

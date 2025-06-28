@@ -10,16 +10,22 @@ import (
 
 func main() {
 
-	mux := chi.NewMux()
-
 	di := dig.New()
-	di.Provide(func() chi.Router { return mux })
 
-	if err := core.RegisterModules(di); err != nil {
-		panic(err)
-	}
+	router := core.CreateMainRouter()
 
-	if err := http.ListenAndServe(":8080", mux); err != nil {
+	router.Route("/modules", func(r chi.Router) {
+		scope := di.Scope("modules")
+		scope.Provide(func() chi.Router { return r })
+		if err := core.RegisterModules(scope); err != nil {
+			panic(err)
+		}
+	})
+
+	root := chi.NewMux()
+	root.Mount("/v1", router)
+
+	if err := http.ListenAndServe(":8080", root); err != nil {
 		panic(err)
 	}
 }
