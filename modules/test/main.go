@@ -9,7 +9,7 @@ import (
 	"go.uber.org/dig"
 )
 
-//go:embed ui/dist/*
+//go:embed ui/dist/**
 var UI embed.FS
 
 func Wire(di *dig.Scope) *core.ModuleInfo {

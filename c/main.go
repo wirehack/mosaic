@@ -2,6 +2,7 @@ package c
 
 import (
 	"fmt"
+	"io/fs"
 	"net/http"
 	"time"
 
@@ -28,4 +29,15 @@ func PrintRoutes(router chi.Router) {
 	if err != nil {
 		fmt.Println("Error walking routes:", err)
 	}
+}
+
+func PrintFS(fsys fs.FS, path string) {
+	fs.WalkDir(fsys, path, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			fmt.Println("error:", err)
+			return nil
+		}
+		fmt.Println(path)
+		return nil
+	})
 }

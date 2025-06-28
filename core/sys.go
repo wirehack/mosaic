@@ -5,12 +5,14 @@ import (
 	"embed"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"plugin"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
@@ -18,11 +20,11 @@ import (
 )
 
 type ModuleInfo struct {
-	Slug        string `json:"slug"`
-	Description string `json:"description"`
-	Version     string `json:"version"`
-	Author      string `json:"author"`
-	Website     string `json:"website"`
+	Slug        string `json:"slug,omitempty"`
+	Description string `json:"description,omitempty"`
+	Version     string `json:"version,omitempty"`
+	Author      string `json:"author,omitempty"`
+	Website     string `json:"website,omitempty"`
 }
 
 type ModuleLoader struct {
@@ -123,10 +125,29 @@ func RegisterModules(di *dig.Scope) error {
 				log.Fatal(err)
 			}
 
-			router.Handle(
-				fmt.Sprintf("/%s/ui/*", mi.Slug),
-				http.StripPrefix(fmt.Sprintf("/%s/ui/", mi.Slug), http.FileServer(http.FS(content))),
+			uiPath := fmt.Sprintf("/%s/ui", mi.Slug)
+
+			// Serve static files
+			router.Method(
+				http.MethodGet,
+				uiPath+"/*",
+				http.StripPrefix("/v1/modules"+uiPath+"/", http.FileServer(http.FS(content))),
 			)
+
+			// Serve index.html fallback for SPA routes
+			router.Get(uiPath, func(w http.ResponseWriter, r *http.Request) {
+				f, err := content.Open("index.html")
+				if err != nil {
+					http.Error(w, "index.html not found", http.StatusInternalServerError)
+					return
+				}
+				defer f.Close()
+				http.ServeContent(w, r, "index.html", time.Now(), f.(io.ReadSeeker))
+			})
+
+			router.Get("/test/info", func(w http.ResponseWriter, r *http.Request) {
+				render.JSON(w, r, mi)
+			})
 
 		})
 

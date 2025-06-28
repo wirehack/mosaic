@@ -1,6 +1,7 @@
 package main
 
 import (
+	"c"
 	"core"
 	"net/http"
 
@@ -24,6 +25,8 @@ func main() {
 
 	root := chi.NewMux()
 	root.Mount("/v1", router)
+
+	c.PrintRoutes(root)
 
 	if err := http.ListenAndServe(":8080", root); err != nil {
 		panic(err)
