@@ -9,10 +9,11 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"plugin"
-	"time"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
@@ -127,25 +128,48 @@ func RegisterModules(di *dig.Scope) error {
 
 			uiPath := fmt.Sprintf("/%s/ui", mi.Slug)
 
-			// Serve static files
-			router.Method(
-				http.MethodGet,
-				uiPath+"/*",
-				http.StripPrefix("/v1/modules"+uiPath+"/", http.FileServer(http.FS(content))),
-			)
-
-			// Serve index.html fallback for SPA routes
-			router.Get(uiPath, func(w http.ResponseWriter, r *http.Request) {
+			renderIndex := func(w http.ResponseWriter, r *http.Request) {
 				f, err := content.Open("index.html")
 				if err != nil {
-					http.Error(w, "index.html not found", http.StatusInternalServerError)
+					http.NotFound(w, r)
 					return
 				}
-				defer f.Close()
-				http.ServeContent(w, r, "index.html", time.Now(), f.(io.ReadSeeker))
+				if _, err := io.Copy(w, f); err != nil {
+					panic(err)
+				}
+			}
+
+			router.Get(uiPath, renderIndex)
+			router.Get(uiPath+"/", renderIndex)
+
+			router.Get(uiPath+"/*", func(w http.ResponseWriter, r *http.Request) {
+
+				parts := strings.Split(r.URL.Path, uiPath+"/")
+
+				if len(parts) != 2 {
+					fmt.Println(r.URL.Path)
+					http.NotFound(w, r)
+					return
+				}
+
+				var file = parts[1]
+
+				if file == "" {
+					file = "index.html"
+				}
+
+				r2 := new(http.Request)
+				*r2 = *r
+				r2.URL = new(url.URL)
+				*r2.URL = *r.URL
+				r2.URL.Path = file
+				r2.URL.RawPath = file
+
+				h := http.FileServer(http.FS(content))
+				h.ServeHTTP(w, r2)
 			})
 
-			router.Get("/test/info", func(w http.ResponseWriter, r *http.Request) {
+			router.Get(fmt.Sprintf("/%s/info", mi.Slug), func(w http.ResponseWriter, r *http.Request) {
 				render.JSON(w, r, mi)
 			})
 
