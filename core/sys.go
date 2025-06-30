@@ -1,7 +1,6 @@
 package core
 
 import (
-	"c"
 	"embed"
 	"errors"
 	"fmt"
@@ -28,22 +27,35 @@ type ModuleInfo struct {
 	Website     string `json:"website,omitempty"`
 }
 
-type ModuleLoader struct {
-	di           *dig.Scope
-	registry     []*ModuleInfo
-	onUiRegister func(mi *ModuleInfo, ui *embed.FS)
+type ModuleMetaAware interface {
+	Meta() *ModuleInfo
 }
 
-func NewModuleLoader(di *dig.Scope, onUiRegister func(mi *ModuleInfo, ui *embed.FS)) *ModuleLoader {
+type ModuleUIAware interface {
+	UI() *embed.FS
+}
+
+type ModuleLoader struct {
+	di         *dig.Scope
+	registry   []any
+	onRegister func(proxy any)
+}
+
+func NewModuleLoader(di *dig.Scope, onRegister func(proxy any)) *ModuleLoader {
 	return &ModuleLoader{
-		di:           di,
-		registry:     make([]*ModuleInfo, 0),
-		onUiRegister: onUiRegister,
+		di:         di,
+		registry:   make([]any, 0),
+		onRegister: onRegister,
 	}
 }
 
-func (loader *ModuleLoader) Registry() []*ModuleInfo {
-	return loader.registry
+func (loader *ModuleLoader) Find(slug string) any {
+	for _, item := range loader.registry {
+		if proxy, b := item.(ModuleMetaAware); b {
+			return proxy
+		}
+	}
+	return nil
 }
 
 func (loader *ModuleLoader) Load() error {
@@ -88,7 +100,7 @@ func (loader *ModuleLoader) Load() error {
 			return err
 		}
 
-		wire, isWireFunction := fn.(func(di *dig.Scope) *ModuleInfo)
+		wire, isWireFunction := fn.(func(di *dig.Scope) any)
 
 		if !isWireFunction {
 			return errors.New("wire function expected")
@@ -98,11 +110,7 @@ func (loader *ModuleLoader) Load() error {
 
 		loader.registry = append(loader.registry, current)
 
-		ui, err := proxy.Lookup("UI")
-
-		if err == nil && ui != nil {
-			loader.onUiRegister(current, ui.(*embed.FS))
-		}
+		loader.onRegister(current)
 
 		return nil
 	})
@@ -114,11 +122,51 @@ func (loader *ModuleLoader) Load() error {
 	return nil
 }
 
-func RegisterModules(di *dig.Scope) error {
+type ModuleProxy struct {
+	registry []any
+}
 
-	loader := NewModuleLoader(di, func(mi *ModuleInfo, ui *embed.FS) {
+func NewModuleProxy() *ModuleProxy {
+	return &ModuleProxy{registry: make([]any, 0)}
+}
+
+func (mp ModuleProxy) Get(slug string) (ret any, exists bool) {
+
+	for _, proxy := range mp.registry {
+		if metaAware, isMetaAware := proxy.(ModuleMetaAware); isMetaAware {
+			if metaAware.Meta().Slug == slug {
+				return proxy, true
+			}
+		}
+	}
+
+	return ret, false
+}
+
+func (mp *ModuleProxy) Register(proxy any) {
+	mp.registry = append(mp.registry, proxy)
+}
+
+func RegisterModules(di *dig.Scope) (proxy *ModuleProxy, err error) {
+
+	mp := NewModuleProxy()
+
+	di.Provide(func() *ModuleProxy { return mp }, dig.Export(true))
+
+	loader := NewModuleLoader(di, func(proxy any) {
+
+		mp.Register(proxy)
+
+		metaAware, isMetaAware := proxy.(ModuleMetaAware)
+		uiAware, isUIAware := proxy.(ModuleUIAware)
+
+		if !isUIAware || !isMetaAware {
+			return
+		}
 
 		di.Invoke(func(router chi.Router) {
+
+			ui := uiAware.UI()
 
 			content, err := fs.Sub(ui, "ui/dist")
 
@@ -126,7 +174,7 @@ func RegisterModules(di *dig.Scope) error {
 				log.Fatal(err)
 			}
 
-			uiPath := fmt.Sprintf("/%s/ui", mi.Slug)
+			uiPath := fmt.Sprintf("/%s/ui", metaAware.Meta().Slug)
 
 			renderIndex := func(w http.ResponseWriter, r *http.Request) {
 				f, err := content.Open("index.html")
@@ -169,24 +217,16 @@ func RegisterModules(di *dig.Scope) error {
 				h.ServeHTTP(w, r2)
 			})
 
-			router.Get(fmt.Sprintf("/%s/info", mi.Slug), func(w http.ResponseWriter, r *http.Request) {
-				render.JSON(w, r, mi)
+			router.Get(fmt.Sprintf("/%s/info", metaAware.Meta().Slug), func(w http.ResponseWriter, r *http.Request) {
+				render.JSON(w, r, metaAware.Meta())
 			})
 
-		})
-
-		c.Log().Infof("Module %s loaded", mi.Slug)
-	})
-
-	di.Invoke(func(router chi.Router) {
-		router.Get("/", func(w http.ResponseWriter, r *http.Request) {
-			render.JSON(w, r, loader.Registry())
 		})
 	})
 
 	if err := loader.Load(); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return proxy, nil
 }

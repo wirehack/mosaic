@@ -1,4 +1,4 @@
-package core
+package route
 
 import (
 	"github.com/go-chi/chi/v5"
@@ -11,4 +11,9 @@ func CreateMainRouter() chi.Router {
 	mux.Use(middleware.Logger)
 	mux.Use(middleware.RequestID)
 	return mux
+}
+
+func MountRoutes(router chi.Router) chi.Router {
+	router.Get("/id", CreateID)
+	return router
 }

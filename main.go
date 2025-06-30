@@ -2,31 +2,26 @@ package main
 
 import (
 	"c"
-	"core"
+	"mosaic/core"
+	"mosaic/route"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"go.uber.org/dig"
 )
 
 func main() {
 
-	di := dig.New()
-
-	router := core.CreateMainRouter()
+	root := chi.NewMux()
+	router := route.CreateMainRouter()
+	root.Mount("/v1", route.MountRoutes(router))
 
 	router.Route("/modules", func(r chi.Router) {
-		scope := di.Scope("modules")
+		scope := c.DI().Scope("modules")
 		scope.Provide(func() chi.Router { return r })
-		if err := core.RegisterModules(scope); err != nil {
+		if _, err := core.RegisterModules(scope); err != nil {
 			panic(err)
 		}
 	})
-
-	root := chi.NewMux()
-	root.Mount("/v1", router)
-
-	c.PrintRoutes(root)
 
 	if err := http.ListenAndServe(":8080", root); err != nil {
 		panic(err)

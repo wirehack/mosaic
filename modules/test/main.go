@@ -1,8 +1,8 @@
 package main
 
 import (
-	"core"
 	"embed"
+	"mosaic/core"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -10,9 +10,25 @@ import (
 )
 
 //go:embed ui/dist/**
-var UI embed.FS
+var UIFS embed.FS
 
-func Wire(di *dig.Scope) *core.ModuleInfo {
+type proxy struct{}
+
+func (proxy) UI() *embed.FS {
+	return &UIFS
+}
+
+func (proxy) Meta() *core.ModuleInfo {
+	return &core.ModuleInfo{
+		Slug:        "test",
+		Description: "test",
+		Version:     "1.1.1",
+	}
+}
+
+func (proxy) Sum(a, b int) int { return a + b }
+
+func Wire(di *dig.Scope) any {
 
 	di.Invoke(func(router chi.Router) {
 		router.Get("/id", func(w http.ResponseWriter, r *http.Request) {
@@ -20,9 +36,5 @@ func Wire(di *dig.Scope) *core.ModuleInfo {
 		})
 	})
 
-	return &core.ModuleInfo{
-		Slug:        "test",
-		Description: "test",
-		Version:     "1.1.1",
-	}
+	return &proxy{}
 }
