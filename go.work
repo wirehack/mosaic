@@ -4,5 +4,7 @@ use (
     "."
     "c"
     "cli"
+    "modules/admin"
     "modules/test"
+    "modules/mail"
 )

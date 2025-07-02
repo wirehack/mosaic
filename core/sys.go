@@ -160,7 +160,13 @@ func RegisterModules(di *dig.Scope) (proxy *ModuleProxy, err error) {
 		metaAware, isMetaAware := proxy.(ModuleMetaAware)
 		uiAware, isUIAware := proxy.(ModuleUIAware)
 
-		if !isUIAware || !isMetaAware {
+		if !isMetaAware {
+			return
+		}
+
+		fmt.Printf("Loaded module %s\n", metaAware.Meta().Slug)
+
+		if !isUIAware {
 			return
 		}
 

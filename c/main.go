@@ -3,12 +3,10 @@ package c
 import (
 	"fmt"
 	"io/fs"
-	"mosaic/core"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"go.uber.org/dig"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -42,20 +40,4 @@ func PrintFS(fsys fs.FS, path string) {
 		fmt.Println(path)
 		return nil
 	})
-}
-
-var __di = dig.New()
-
-func DI() *dig.Scope {
-	return __di.Scope("root")
-}
-
-func Module[T any](name string) (proxy T, exists bool) {
-	DI().Invoke(func(mp *core.ModuleProxy) {
-		if ret, has := mp.Get(name); has {
-			exists = true
-			proxy = ret.(T)
-		}
-	})
-	return
 }
