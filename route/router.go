@@ -14,6 +14,5 @@ func CreateMainRouter() chi.Router {
 }
 
 func MountRoutes(router chi.Router) chi.Router {
-	router.Get("/id", CreateID)
 	return router
 }

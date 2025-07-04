@@ -5,6 +5,7 @@ use (
     "c"
     "cli"
     "modules/admin"
+    "modules/id"
     "modules/test"
     "modules/mail"
 )

@@ -1,11 +1,20 @@
 package core
 
-import "go.uber.org/dig"
+import (
+	"c"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+	"go.uber.org/dig"
+)
 
 var __di = dig.New()
 
 func DI() *dig.Scope {
-	return __di.Scope("root")
+	scope := __di.Scope("root")
+	scope.Provide(func() func() *pgxpool.Pool {
+		return c.DB
+	})
+	return scope
 }
 
 func Module[T any](name string) (proxy T, exists bool) {
