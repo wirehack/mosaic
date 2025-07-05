@@ -15,7 +15,9 @@ func main() {
 	router := route.CreateMainRouter()
 	root.Mount("/v1", route.MountRoutes(router))
 
-	if _, err := core.RegisterModules(core.DI()); err != nil {
+	di := core.NewDI(router)
+
+	if _, err := core.RegisterModules(di); err != nil {
 		panic(err)
 	}
 

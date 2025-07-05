@@ -6,6 +6,5 @@ use (
     "cli"
     "modules/admin"
     "modules/id"
-    "modules/test"
     "modules/mail"
 )

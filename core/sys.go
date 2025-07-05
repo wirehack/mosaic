@@ -14,9 +14,7 @@ import (
 	"plugin"
 	"strings"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
-	"go.uber.org/dig"
 )
 
 type ModuleInfo struct {
@@ -36,12 +34,12 @@ type ModuleUIAware interface {
 }
 
 type ModuleLoader struct {
-	di         *dig.Scope
+	di         DI
 	registry   []any
 	onRegister func(proxy any)
 }
 
-func NewModuleLoader(di *dig.Scope, onRegister func(proxy any)) *ModuleLoader {
+func NewModuleLoader(di DI, onRegister func(proxy any)) *ModuleLoader {
 	return &ModuleLoader{
 		di:         di,
 		registry:   make([]any, 0),
@@ -100,7 +98,7 @@ func (loader *ModuleLoader) Load() error {
 			return err
 		}
 
-		wire, isWireFunction := fn.(func(di *dig.Scope) any)
+		wire, isWireFunction := fn.(func(di DI) any)
 
 		if !isWireFunction {
 			return errors.New("wire function expected")
@@ -147,11 +145,11 @@ func (mp *ModuleProxy) Register(proxy any) {
 	mp.registry = append(mp.registry, proxy)
 }
 
-func RegisterModules(di *dig.Scope) (proxy *ModuleProxy, err error) {
+func RegisterModules(di DI) (proxy *ModuleProxy, err error) {
 
 	mp := NewModuleProxy()
 
-	di.Provide(func() *ModuleProxy { return mp }, dig.Export(true))
+	//di.SetModuleProxy(mp)
 
 	loader := NewModuleLoader(di, func(proxy any) {
 
@@ -170,64 +168,61 @@ func RegisterModules(di *dig.Scope) (proxy *ModuleProxy, err error) {
 			return
 		}
 
-		di.Invoke(func(router chi.Router) {
+		ui := uiAware.UI()
 
-			ui := uiAware.UI()
+		content, err := fs.Sub(ui, "ui/dist")
 
-			content, err := fs.Sub(ui, "ui/dist")
+		if err != nil {
+			log.Fatal(err)
+		}
 
+		uiPath := fmt.Sprintf("/%s/ui", metaAware.Meta().Slug)
+
+		renderIndex := func(w http.ResponseWriter, r *http.Request) {
+			f, err := content.Open("index.html")
 			if err != nil {
-				log.Fatal(err)
+				http.NotFound(w, r)
+				return
+			}
+			if _, err := io.Copy(w, f); err != nil {
+				panic(err)
+			}
+		}
+
+		di.Router().Get(uiPath, renderIndex)
+		di.Router().Get(uiPath+"/", renderIndex)
+
+		di.Router().Get(uiPath+"/*", func(w http.ResponseWriter, r *http.Request) {
+
+			parts := strings.Split(r.URL.Path, uiPath+"/")
+
+			if len(parts) != 2 {
+				fmt.Println(r.URL.Path)
+				http.NotFound(w, r)
+				return
 			}
 
-			uiPath := fmt.Sprintf("/%s/ui", metaAware.Meta().Slug)
+			var file = parts[1]
 
-			renderIndex := func(w http.ResponseWriter, r *http.Request) {
-				f, err := content.Open("index.html")
-				if err != nil {
-					http.NotFound(w, r)
-					return
-				}
-				if _, err := io.Copy(w, f); err != nil {
-					panic(err)
-				}
+			if file == "" {
+				file = "index.html"
 			}
 
-			router.Get(uiPath, renderIndex)
-			router.Get(uiPath+"/", renderIndex)
+			r2 := new(http.Request)
+			*r2 = *r
+			r2.URL = new(url.URL)
+			*r2.URL = *r.URL
+			r2.URL.Path = file
+			r2.URL.RawPath = file
 
-			router.Get(uiPath+"/*", func(w http.ResponseWriter, r *http.Request) {
-
-				parts := strings.Split(r.URL.Path, uiPath+"/")
-
-				if len(parts) != 2 {
-					fmt.Println(r.URL.Path)
-					http.NotFound(w, r)
-					return
-				}
-
-				var file = parts[1]
-
-				if file == "" {
-					file = "index.html"
-				}
-
-				r2 := new(http.Request)
-				*r2 = *r
-				r2.URL = new(url.URL)
-				*r2.URL = *r.URL
-				r2.URL.Path = file
-				r2.URL.RawPath = file
-
-				h := http.FileServer(http.FS(content))
-				h.ServeHTTP(w, r2)
-			})
-
-			router.Get(fmt.Sprintf("/%s/info", metaAware.Meta().Slug), func(w http.ResponseWriter, r *http.Request) {
-				render.JSON(w, r, metaAware.Meta())
-			})
-
+			h := http.FileServer(http.FS(content))
+			h.ServeHTTP(w, r2)
 		})
+
+		di.Router().Get(fmt.Sprintf("/%s/info", metaAware.Meta().Slug), func(w http.ResponseWriter, r *http.Request) {
+			render.JSON(w, r, metaAware.Meta())
+		})
+
 	})
 
 	if err := loader.Load(); err != nil {

@@ -4,21 +4,15 @@ import (
 	"context"
 	"mosaic/core"
 	"mosaic/types"
-
-	"github.com/jackc/pgx/v5/pgxpool"
-	"go.uber.org/dig"
 )
 
 type proxy struct {
-	di *dig.Scope
+	di core.DI
 	types.MailModuleProxy
 }
 
 func (p *proxy) Send(recipient types.SendRecipient, subject, template string, params *types.D) error {
-	p.di.Invoke(func(db func() *pgxpool.Pool) error {
-		db().Exec(context.Background(), "SELECT 1")
-		return nil
-	})
+	p.di.DB().Exec(context.Background(), "SELECT 1")
 	return nil
 }
 
@@ -30,7 +24,7 @@ func (p *proxy) Meta() *core.ModuleInfo {
 	}
 }
 
-func Wire(di *dig.Scope) any {
+func Wire(di core.DI) any {
 	return &proxy{
 		di: di,
 	}

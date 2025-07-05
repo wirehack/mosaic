@@ -3,9 +3,6 @@ package main
 import (
 	"mosaic/core"
 	"net/http"
-
-	"github.com/go-chi/chi/v5"
-	"go.uber.org/dig"
 )
 
 type proxy struct{}
@@ -18,18 +15,24 @@ func (proxy) Meta() *core.ModuleInfo {
 	}
 }
 
-func noop(w http.ResponseWriter, r *http.Request) {
+func Wire(di core.DI) any {
+
+	di.Router().Post("/id", create)
+	di.Router().Get("/id/{id}", me)
+	di.Router().Put("/id/acm/{resource}/{permission}", noop)
+	di.Router().Get("/id/acm/{resource}/{permission}", noop)
+
+	return &proxy{}
+}
+
+func create(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Hello world!"))
 }
 
-func Wire(di *dig.Scope) any {
+func me(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("Hello world!"))
+}
 
-	di.Invoke(func(router chi.Router) {
-		router.Post("/id", noop)
-		router.Get("/id/{id}", noop)
-		router.Put("/id/acm/{resource}/{permission}", noop)
-		router.Get("/id/acm/{resource}/{permission}", noop)
-	})
-
-	return &proxy{}
+func noop(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("Hello world!"))
 }

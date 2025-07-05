@@ -3,9 +3,6 @@ package main
 import (
 	"mosaic/core"
 	"net/http"
-
-	"github.com/go-chi/chi/v5"
-	"go.uber.org/dig"
 )
 
 type proxy struct{}
@@ -18,12 +15,10 @@ func (proxy) Meta() *core.ModuleInfo {
 	}
 }
 
-func Wire(di *dig.Scope) any {
+func Wire(di core.DI) any {
 
-	di.Invoke(func(router chi.Router) {
-		router.Get("/admin", func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte("ADMIN"))
-		})
+	di.Router().Get("/admin", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("ADMIN"))
 	})
 
 	return &proxy{}

@@ -9,7 +9,7 @@ import (
 
 var __di = dig.New()
 
-func DI() *dig.Scope {
+func XDI() *dig.Scope {
 	scope := __di.Scope("root")
 	scope.Provide(func() func() *pgxpool.Pool {
 		return c.DB
@@ -18,7 +18,7 @@ func DI() *dig.Scope {
 }
 
 func Module[T any](name string) (proxy T, exists bool) {
-	DI().Invoke(func(mp *ModuleProxy) {
+	XDI().Invoke(func(mp *ModuleProxy) {
 		if ret, has := mp.Get(name); has {
 			exists = true
 			proxy = ret.(T)

@@ -14,6 +14,7 @@ require (
 )
 
 require (
+	github.com/go-chi/chi/v5 v5.2.2
 	github.com/jackc/pgx/v5 v5.7.5
 	go.uber.org/multierr v1.10.0 // indirect
 )
