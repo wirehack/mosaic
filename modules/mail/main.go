@@ -8,7 +8,6 @@ import (
 
 type proxy struct {
 	di core.DI
-	types.MailModuleProxy
 }
 
 func (p *proxy) Send(recipient types.SendRecipient, subject, template string, params *types.D) error {
@@ -25,7 +24,5 @@ func (p *proxy) Meta() *core.ModuleInfo {
 }
 
 func Wire(di core.DI) any {
-	return &proxy{
-		di: di,
-	}
+	return &proxy{di}
 }

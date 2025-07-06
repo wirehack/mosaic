@@ -5,9 +5,11 @@ import (
 	"net/http"
 )
 
-type proxy struct{}
+type proxy struct {
+	di core.DI
+}
 
-func (proxy) Meta() *core.ModuleInfo {
+func (p proxy) Meta() *core.ModuleInfo {
 	return &core.ModuleInfo{
 		Slug:        "id",
 		Description: "id",
@@ -17,22 +19,24 @@ func (proxy) Meta() *core.ModuleInfo {
 
 func Wire(di core.DI) any {
 
-	di.Router().Post("/id", create)
-	di.Router().Get("/id/{id}", me)
-	di.Router().Put("/id/acm/{resource}/{permission}", noop)
-	di.Router().Get("/id/acm/{resource}/{permission}", noop)
+	p := proxy{di}
 
-	return &proxy{}
+	di.Router().Post("/id", p.create)
+	di.Router().Get("/id/{id}", p.me)
+	di.Router().Put("/id/acm/{resource}/{permission}", p.noop)
+	di.Router().Get("/id/acm/{resource}/{permission}", p.noop)
+
+	return p
 }
 
-func create(w http.ResponseWriter, r *http.Request) {
+func (p proxy) create(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Hello world!"))
 }
 
-func me(w http.ResponseWriter, r *http.Request) {
+func (p proxy) me(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Hello world!"))
 }
 
-func noop(w http.ResponseWriter, r *http.Request) {
+func (p proxy) noop(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Hello world!"))
 }

@@ -5,7 +5,9 @@ import (
 	"net/http"
 )
 
-type proxy struct{}
+type proxy struct {
+	di core.DI
+}
 
 func (proxy) Meta() *core.ModuleInfo {
 	return &core.ModuleInfo{
@@ -15,11 +17,15 @@ func (proxy) Meta() *core.ModuleInfo {
 	}
 }
 
+func (p proxy) AdminFiles(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("ADMIN"))
+}
+
 func Wire(di core.DI) any {
 
-	di.Router().Get("/admin", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("ADMIN"))
-	})
+	p := &proxy{di}
 
-	return &proxy{}
+	di.Router().Get("/admin/ui", p.AdminFiles)
+
+	return p
 }
