@@ -13,7 +13,6 @@ type DI interface {
 }
 
 type DII struct {
-	DI
 	router chi.Router
 }
 
